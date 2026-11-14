@@ -8,3 +8,11 @@ class JobStatus(str, Enum):
     running = 'running'
     completed = 'completed'
     failed = 'failed'
+    cancelled = 'cancelled'
+class AttemptStatus(str, Enum):
+    queued = 'queued'
+    running = 'running'
+    completed = 'completed'
+    failed = 'failed'
+    cancelled = 'cancelled'
+    superseded = 'superseded'

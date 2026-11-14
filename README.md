@@ -29,11 +29,15 @@ Python 3.12 / FastAPI / SQLAlchemy / NumPy / SciPy / scikit-learn；MySQL 8.0；
 ## 目录与工程约定
 backend/src/{models,schemas,services,routes,controllers,middlewares,constants,config,utils}；backend/scripts/seed_demo.py；backend/migrations/initial.py。
 frontend/src/{api,stores,types,components/common,hooks,pages,router,utils,constants}。
-Role 枚举：admin/analyst/viewer；JobStatus：queued/running/completed/failed。后端 backend/src/constants/enums.py，前端 frontend/src/constants/enums.js；路由权限在 middlewares/auth.py；页面按相同角色控制操作入口。
+Role 枚举：admin/analyst/viewer；JobStatus：queued/running/completed/failed/cancelled；每次执行另有 AttemptStatus：queued/running/completed/failed/cancelled/superseded。后端 backend/src/constants/enums.py，前端 frontend/src/constants/enums.js；路由权限在 middlewares/auth.py；页面按相同角色控制操作入口。
 
 ## 环境变量与 Docker
 COMPOSE_PROJECT_NAME=energy-ridge；FRONTEND_PORT=18215；BACKEND_PORT=19215；DB_PORT=17715；DB_PASSWORD、JWT_SECRET 见 .env.example；SEED_DEMO 默认 true。共享命名产物卷供后端下载与 worker 写入，数据库/Redis 各持久卷。
 恰好五服务均有健康检查。Redis 队列加 SQL 排队状态兜底；worker 按 next_run 生成本地收件箱文件。周期 60 秒至 30 天。分发结果为批准分析的固定快照；若需新数据重新计算并建立新计划。当前不连接邮件或企业聊天。
+
+### 归因试验的执行尝试
+排队中或计算中的试验可取消（可填写原因）；失败或已取消的试验可按原参数重试，参数不变、尝试序号递增。重复点击重试由 SQL 条件更新保证只生效一次。多执行器并发接单时通过 `(attempt_no, lease_token)` 条件更新保证每次尝试只有一个有效执行者；执行器失联后租约（`JOB_LEASE_SECONDS`，默认 60 秒）到期，由任意存活执行器自动接管并开始新尝试。慢执行器恢复后，其写入被租约栅栏拒绝，不能覆盖新尝试、完成结果或取消状态。已取消的结果不能批准，也不会进入分发档案（worker 投递前再次校验 `completed` 且 `approved`）。结果页按尝试列出起止时间、执行器、接管原因与取消原因。
+
 错误响应、请求编号、Redis 每 IP 每分钟 240 次限流、JWT 和数据库操作审计。演示密钥与密码仅供本机模拟；生产部署前配置独立密钥与账号。
 
 ## 数据与验收
